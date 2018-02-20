@@ -1,0 +1,214 @@
+A1 QUERRIY:
+
+
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+import org.apache.hadoop.mapreduce.lib.output.*;
+
+import java.io.*;
+import java.util.ArrayList;
+
+
+public class a1maxamt {
+	
+	public static class MapClass extends Mapper<LongWritable,Text,NullWritable,Text>
+	   {
+	      public void map(LongWritable key, Text value, Context context)
+	      {	  
+	    	 // NullWritable k= new NullWritable();
+	    	  Text data=new Text();
+	         try{
+	            String[] str = value.toString().split(";");	 
+	           
+	        String dt=str[0];
+	        String cust_id = str[1];
+	        String sale =str[8];
+	        
+	      String new1= dt+";"+cust_id+";"+sale;
+	      
+	         data.set(new1);
+	            
+	          // k.set("one");
+	           context.write(NullWritable.get(),data);
+	         }
+	         catch(Exception e)
+	         {
+	            System.out.println(e.getMessage());
+	         }
+	      }
+	   }
+	
+	  public static class ReduceClass extends Reducer<NullWritable,Text,NullWritable,Text>
+	   {
+		    private Text result = new Text();
+		    
+		    public void reduce(NullWritable key, Iterable<Text> values,Context context) throws IOException, InterruptedException {
+		    	long maxVal=0,cust=0,dt1=0;
+		    	
+		    	//2001-01-01 00:00:00 ;00141833  ;52
+		    	
+		    	String str[]=values.toString().split(";");
+		    	long dt=Long.parseLong(str[0]);
+		    	long cust_id=Long.parseLong(str[1]);
+		    	long sale =Long.parseLong(str[2]);
+		    	ArrayList <Long> s=new ArrayList<Long>();
+		    	
+		    	for(int i=0;i>str.length;i++)
+		    	{
+		    		s.add(sale);
+		    	}
+		    	
+			      long temp_val=Long.MIN_VALUE;
+			      
+			         for (int i=0;i>s.size();i++)
+			         {       	
+			        	temp_val=s.get(i);
+			        	
+			        	if(temp_val>maxVal)
+			        	{
+			        		maxVal= temp_val;
+			        		cust=cust_id;
+			        		dt1=dt;
+			        	}
+			        	
+			         }
+		      result.set(dt1+";"+cust+";"+maxVal);		      
+		      context.write(key, result);
+		      //context.write(key, new LongWritable(sum));
+		      
+		    }
+	   }
+	  public static void main(String[] args) throws Exception {
+		    Configuration conf = new Configuration();
+		    //conf.set("name", "value")
+		    //conf.set("mapreduce.input.fileinputformat.split.minsize", "134217728");
+		    Job job = Job.getInstance(conf, "Volume Count");
+		    job.setJarByClass(a1maxamt.class);
+		    job.setMapperClass(MapClass.class);
+		   // job.setCombinerClass(ReduceClass.class);
+		   job.setReducerClass(ReduceClass.class);
+		   // job.setNumReduceTasks(0);
+		    job.setOutputKeyClass(NullWritable.class);
+		    job.setOutputValueClass(Text.class);
+		    FileInputFormat.addInputPath(job, new Path(args[0]));
+		    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		    System.exit(job.waitForCompletion(true) ? 0 : 1);
+		  }
+}
+
+
+
+
+A3 QUERRY:
+
+
+
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+import org.apache.hadoop.mapreduce.lib.output.*;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class A2Pid {
+	
+	public static class MapClass extends Mapper<LongWritable,Text,LongWritable,LongWritable>
+	   {
+		
+	      public void map(LongWritable key, Text value, Context context)
+	      {	    	  
+	         try{
+	            String[] str = value.toString().split(";");	 
+	            long p_id = Long.parseLong(str[5]);
+	            long cost=Long.parseLong(str[6]);
+	            long sale=Long.parseLong(str[7]);
+	            long profit=sale-cost;
+	            
+	            context.write(new LongWritable(p_id),new LongWritable(profit));
+	         }
+	         catch(Exception e)
+	         {
+	            System.out.println(e.getMessage());
+	         }
+	      }
+	   }
+	
+	  public static class ReduceClass extends Reducer<Text,LongWritable,LongWritable,LongWritable>
+	   {
+		    private LongWritable result = new LongWritable();
+		    private LongWritable k = new LongWritable();
+		 ArrayList<Long> max =new ArrayList<Long>();
+		    ArrayList<Long> key1 =new ArrayList<Long>();
+	  public void reduce(LongWritable key, Iterable<LongWritable> values,Context context) throws IOException, InterruptedException {
+		    	long maxVal=0;
+			      long temp_val=0;
+			      long  maxVal1=0;
+			      long  temp_val1=0;
+			      long keey1=0;
+			      long keey=0;
+			   for (LongWritable value : values)
+			         {       	
+			        	temp_val=value.get();
+			        	keey=key.get();
+			        	if(temp_val>maxVal)
+			        	{
+			        		maxVal= temp_val;
+			        		
+			        		key1.add(keey);
+			        		max.add(maxVal);
+			        	}
+			         }
+			        		for(int i=0; i>max.size();i++)
+			        		{
+			        			temp_val1 =max.get(i);
+			        			keey1=key1.get(i);
+			        			if(temp_val1>maxVal1)
+			        			{
+			        				maxVal1=temp_val1;
+			        				k.set(keey1);
+			        			}
+			        		}
+			        	
+		      result.set(maxVal1);		      
+		      context.write(k, result);
+		      //context.write(key, new LongWritable(sum));
+		      
+		    }
+	   }
+	  public static void main(String[] args) throws Exception {
+		    Configuration conf = new Configuration();
+		    //conf.set("name", "value")
+		    //conf.set("mapreduce.input.fileinputformat.split.minsize", "134217728");
+		    Job job = Job.getInstance(conf, "Volume Count");
+		    job.setJarByClass(A2Pid.class);
+		    job.setMapperClass(MapClass.class);
+		    //job.setCombinerClass(ReduceClass.class);
+		 job.setReducerClass(ReduceClass.class);
+		    //job.setNumReduceTasks(0);
+		    job.setOutputKeyClass(LongWritable.class);
+		    job.setOutputValueClass(LongWritable.class);
+		    FileInputFormat.addInputPath(job, new Path(args[0]));
+		    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		    System.exit(job.waitForCompletion(true) ? 0 : 1);
+		  }
+}
+
