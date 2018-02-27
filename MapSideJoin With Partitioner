@@ -1,0 +1,185 @@
+//find total of qty sold by for each product for every state
+// lookup table file is store_master-
+//11,Mumbai,MAH,400001
+//master table  is POS1
+//11,101,20,10
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.util.Tool;
+import org.apache.hadoop.util.ToolRunner;
+
+
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapreduce.Reducer;
+
+
+public class MapSideJoin_EX2  extends Configured implements Tool {
+	
+	
+	public static class MyMapper extends Mapper<LongWritable,Text, Text, Text> {
+        
+		
+		private Map<String, String> abMap = new HashMap<String, String>();
+		
+		private Text outputKey = new Text();
+		private Text outputValue = new Text();
+		
+		protected void setup(Context context) throws java.io.IOException, InterruptedException{
+			
+			super.setup(context);
+
+		    URI[] files = context.getCacheFiles(); // getCacheFiles returns null
+
+		    Path p = new Path(files[0]);
+		
+		    FileSystem fs = FileSystem.get(context.getConfiguration());		    
+		
+			if (p.getName().equals("store_master")) {
+				
+					BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(p)));
+
+					String line = reader.readLine();
+					while(line != null) {
+						String[] tokens = line.split(",");
+						String store_id = tokens[0];
+						String state = tokens[2];
+						abMap.put(store_id, state);
+						line = reader.readLine();
+					}
+					reader.close();
+				}
+			
+			if (abMap.isEmpty()) {
+				throw new IOException("MyError:Unable to load store_matser data.");
+			}
+
+		}
+
+		
+        protected void map(LongWritable key, Text value, Context context)
+            throws java.io.IOException, InterruptedException {
+        	
+        	
+        	String row = value.toString();//reading the data from Employees.txt
+        	String[] tokens = row.split(",");
+        	String p_id=tokens[1];
+        	String store_id = tokens[0];
+        	String state = abMap.get(store_id);
+        	String qty=tokens[2];
+        	String qty_state = qty + "," + state; 
+        	outputKey.set(p_id);
+        	outputValue.set(qty_state);
+      	  	context.write(outputKey,outputValue);
+        }  
+}
+	
+	
+	 public static class ReduceClass extends Reducer<Text,Text,Text,Text>
+	   {
+		    private Text result = new Text();
+		    
+		    public void reduce(Text key, Iterable<Text> values,Context context) throws IOException, InterruptedException
+		    {
+		    	int sum=0;
+		    	for(Text val:values)
+		    	{
+		    	String str[]=val.toString().split(",");
+		    	
+		    	int qty=Integer.parseInt(str[1]);
+		    	sum+=qty;
+		    
+		    	}
+		    	String total=Integer.toString( sum);
+	    	    result.set(new Text(total));
+	    		context.write(key, result);
+		      //context.write(key, new LongWritable(sum));
+		    	
+		    }
+	   }
+
+	 
+	 //partitioner calss
+	 public static class CaderPartitioner extends
+	   Partitioner < Text, Text >
+	   {
+	      @Override
+	      public int getPartition(Text key, Text value, int numReduceTasks)
+	      {
+	         String[] str = value.toString().split(",");
+	        String state=str[2].trim();
+	        if(state.equals("MAH"))
+	        {
+	            return 0 % numReduceTasks ;
+	        }
+	         else 
+	         {
+	            return 1 % numReduceTasks  ;
+	         }
+	      }
+	   }
+	
+	 
+	 public int run(String[] arg) throws Exception
+	   {
+		
+		   
+		  Configuration conf = new Configuration();
+		  Job job = Job.getInstance(conf);
+		  conf.set("mapreduce.output.textoutputformat.separator", ",");
+		  
+		 
+	      FileInputFormat.setInputPaths(job, new Path(arg[0]));
+	      FileOutputFormat.setOutputPath(job,new Path(arg[2]));
+	      job.setJarByClass(MapSideJoin_EX2.class);
+	      job.setJobName("Map Side Join");
+	      job.setMapperClass(MyMapper.class);
+	      job.addCacheFile(new Path(arg[1]).toUri());
+	    //  job.setPartitionerClass(CaderPartitioner.class);
+	      
+	   //   job.setReducerClass(ReduceClass.class);
+	     // job.setNumReduceTasks(2);
+	      job.setMapOutputKeyClass(Text.class);
+	      job.setMapOutputValueClass(Text.class);
+	      
+	      //set partitioner statement
+			
+	      job.setPartitionerClass(CaderPartitioner.class);
+	      job.setReducerClass(ReduceClass.class);
+	      job.setNumReduceTasks(2);
+	      job.setInputFormatClass(TextInputFormat.class);
+			
+	      job.setOutputFormatClass(TextOutputFormat.class);
+	      job.setOutputKeyClass(Text.class);
+	      job.setOutputValueClass(Text.class);
+			
+	      System.exit(job.waitForCompletion(true)? 0 : 1);
+	      return 0;
+	   }
+	   
+	   public static void main(String ar[]) throws Exception
+	   {
+	      ToolRunner.run(new Configuration(), new MapSideJoin_EX2(),ar);
+	      System.exit(0);
+	   }
+	 
+	
+ 
+}
