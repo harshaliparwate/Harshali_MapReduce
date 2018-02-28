@@ -1,0 +1,167 @@
+
+			
+			
+
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Mapper.Context;
+import org.apache.hadoop.mapreduce.Partitioner;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+import org.apache.hadoop.mapreduce.lib.output.*;
+
+import java.io.*;
+import java.util.ArrayList;
+
+
+public class C1_partAge {
+	
+	public static class MapClass extends Mapper<LongWritable,Text,LongWritable,Text>
+	   {
+	      public void map(LongWritable key, Text value, Context context)
+	      {	
+	    	  try
+	    	  {
+	    		  
+	    	    
+	    	  String [] str =value.toString().split(";");
+				
+				//long product_id=Long.parseLong(str[5]);
+				
+				String age=str[2];
+				int cost=Integer.parseInt(str[7]);
+				int sale=Integer.parseInt(str[8]);
+				
+				int profit=sale-cost;
+				String net=String.format("%d", profit);
+				
+				String val=age.trim()+','+net;
+				
+				context.write(new LongWritable(Long.parseLong(str[5])), new Text(val));
+				
+	            }
+	         catch(Exception e)
+	         {
+	            System.out.println(e.getMessage());
+	         }
+	      }  
+	   }
+	
+	
+	 //Partitioner class
+	
+	   public static class CaderPartitioner extends
+	   Partitioner < LongWritable, Text >
+	   {
+	      @Override
+	      public int getPartition(LongWritable key, Text value, int numReduceTasks)
+	      {
+	         String[] str = value.toString().split(",");
+	         String age=str[0].trim();
+	         
+	         
+	         if(age.equals("A"))
+	         {
+	            return 0 % numReduceTasks;
+	         }
+	         else if(age.equals("B"))
+	         {
+	            return 1 % numReduceTasks ;
+	         }
+	         else if(age.equals("C"))
+	         {
+	            return 2 % numReduceTasks ;
+	         }
+	         
+	         else if(age.equals("D"))
+	         {
+	            return 3  % numReduceTasks;
+	         }
+	         
+	         else if(age.equals("E"))
+	         {
+	            return 4 % numReduceTasks;
+	         }
+	         
+	         else if(age.equals("F"))
+	         {
+	            return 5 % numReduceTasks ;
+	         }
+	         
+	         else if(age.equals("G"))
+	         {
+	            return 6 % numReduceTasks;
+	         }
+	         
+	         else if(age.equals("H"))
+	         {
+	            return 7 % numReduceTasks;
+	         }
+	         
+	         else if(age.equals("I"))
+	         {
+	            return 8 % numReduceTasks ;
+	         }
+	        
+	         else
+	         {
+	            return 9 % numReduceTasks;
+	         }
+	      }
+	   }
+	
+	
+	
+	  public static class ReduceClass extends Reducer<LongWritable,Text,LongWritable,Text>
+	   {
+		    private Text result = new Text();
+		    
+		    public void reduce(LongWritable key, Iterable<Text> values,Context context) throws IOException, InterruptedException
+		    {
+		    	int sum=0;
+		    	for(Text val:values)
+		    	{
+		    	String str[]=val.toString().split(",");
+		    	
+		    	int pf=Integer.parseInt(str[1]);
+		    	sum+=pf;
+		    	}	    	
+		    	
+		    	if (sum>0)
+		    	{
+		    		String pf1=Integer.toString( sum);
+		    	    result.set(new Text(pf1));
+		    		context.write(key, result);
+		    	}
+		    	      
+		      //context.write(key, new LongWritable(sum));
+		    	
+		    }
+	   }
+	  public static void main(String[] args) throws Exception {
+		    Configuration conf = new Configuration();
+		    //conf.set("name", "value")
+		    //conf.set("mapreduce.input.fileinputformat.split.minsize", "134217728");
+		    Job job = Job.getInstance(conf, "Top viable");
+		    job.setJarByClass(C1_partAge.class);
+		    job.setMapperClass(MapClass.class);
+		    job.setPartitionerClass(CaderPartitioner.class);
+		   // job.setCombinerClass(ReduceClass.class);
+		   job.setReducerClass(ReduceClass.class);
+		    job.setNumReduceTasks(10);
+		    job.setOutputKeyClass(LongWritable.class);
+		    job.setOutputValueClass(Text.class);
+		    FileInputFormat.addInputPath(job, new Path(args[0]));
+		    FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		    System.exit(job.waitForCompletion(true) ? 0 : 1);
+		  }
+}
